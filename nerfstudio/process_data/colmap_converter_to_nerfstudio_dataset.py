@@ -114,7 +114,7 @@ class ColmapConverterToNerfstudioDataset(BaseConverterToNerfstudioDataset):
 
     @property
     def absolute_colmap_model_path(self) -> Path:
-        if self.use_best_sparse_model:
+        if not self.skip_colmap and self.use_best_sparse_model:
             return colmap_utils.BestSparseModel.get_model_path(self.absolute_colmap_path)
         return self.output_dir / self.colmap_model_path
 
