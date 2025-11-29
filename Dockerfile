@@ -3,14 +3,14 @@ ARG UBUNTU_VERSION=22.04
 ARG NVIDIA_CUDA_VERSION=11.8.0
 # CUDA architectures, required by Colmap and tiny-cuda-nn. Use >= 8.0 for faster TCNN.
 ARG CUDA_ARCHITECTURES="90;89;86;80;75;70;61"
-ARG NERFSTUDIO_VERSION=""
+ARG NERFSTUDIO_VERSION="feat/docker-update"
 
 # Pull source either provided or from git.
 FROM scratch as source_copy
 ONBUILD COPY . /tmp/nerfstudio
 FROM alpine/git as source_no_copy
 ARG NERFSTUDIO_VERSION
-ONBUILD RUN git clone --branch ${NERFSTUDIO_VERSION} --recursive https://github.com/nerfstudio-project/nerfstudio.git /tmp/nerfstudio
+ONBUILD RUN git clone --branch ${NERFSTUDIO_VERSION} --recursive https://github.com/Skelp/nerfstudio-experimental.git /tmp/nerfstudio
 ARG NERFSTUDIO_VERSION
 FROM source_${NERFSTUDIO_VERSION:+no_}copy as source
 
@@ -64,13 +64,17 @@ RUN git clone https://github.com/colmap/glomap.git && \
     mkdir -p /build && \
     cmake .. -GNinja "-DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}" \
         -DCMAKE_INSTALL_PREFIX=/build/glomap && \
-    ninja install -j1 && \
+    ninja install -j22 && \
     cd ~
+
+# Fix permissions
+RUN chmod -R go=u /usr/local/lib/python3.10 && \
+    chmod -R go=u /build
 
 # Build and install COLMAP.
 RUN git clone https://github.com/colmap/colmap.git && \
     cd colmap && \
-    git checkout "3.9.1" && \
+    git checkout "3.13.0" && \
     mkdir build && \
     cd build && \
     mkdir -p /build && \
@@ -82,10 +86,10 @@ RUN git clone https://github.com/colmap/colmap.git && \
 # Upgrade pip and install dependencies.
 # pip install torch==2.2.2 torchvision==0.17.2 --index-url https://download.pytorch.org/whl/cu118 && \
 RUN pip install --no-cache-dir --upgrade pip 'setuptools<70.0.0' && \
-    pip install --no-cache-dir torch==2.1.2+cu118 torchvision==0.16.2+cu118 'numpy<2.0.0' --extra-index-url https://download.pytorch.org/whl/cu118 && \
+    pip install --no-cache-dir torch==2.0.1+cu118 'torchvision<0.16.2' 'numpy<2.0.0' --extra-index-url https://download.pytorch.org/whl/cu118 && \
     git clone --branch master --recursive https://github.com/cvg/Hierarchical-Localization.git /opt/hloc && \
     cd /opt/hloc && git checkout v1.4 && python3.10 -m pip install --no-cache-dir . && cd ~ && \
-    TCNN_CUDA_ARCHITECTURES="${CUDA_ARCHITECTURES}" pip install --no-cache-dir "git+https://github.com/NVlabs/tiny-cuda-nn.git@b3473c81396fe927293bdfd5a6be32df8769927c#subdirectory=bindings/torch" && \
+    TCNN_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES} pip install --no-build-isolation --no-cache-dir "git+https://github.com/NVlabs/tiny-cuda-nn.git@b3473c81396fe927293bdfd5a6be32df8769927c#subdirectory=bindings/torch" && \
     pip install --no-cache-dir pycolmap==0.6.1 pyceres==2.1 omegaconf==2.3.0
 
 # Install gsplat and nerfstudio.
@@ -98,13 +102,15 @@ COPY --from=source /tmp/nerfstudio/ /tmp/nerfstudio
 RUN export TORCH_CUDA_ARCH_LIST="$(echo "$CUDA_ARCHITECTURES" | tr ';' '\n' | awk '$0 > 70 {print substr($0,1,1)"."substr($0,2)}' | tr '\n' ' ' | sed 's/ $//')" && \
     export MAX_JOBS=4 && \
     GSPLAT_VERSION="$(sed -n 's/.*gsplat==\s*\([^," '"'"']*\).*/\1/p' /tmp/nerfstudio/pyproject.toml)" && \
-    pip install --no-cache-dir git+https://github.com/nerfstudio-project/gsplat.git@v${GSPLAT_VERSION} && \
+    pip install --no-build-isolation --no-cache-dir git+https://github.com/nerfstudio-project/gsplat.git@v${GSPLAT_VERSION} && \
     pip install --no-cache-dir /tmp/nerfstudio 'numpy<2.0.0' && \
     rm -rf /tmp/nerfstudio
 
-# Fix permissions
-RUN chmod -R go=u /usr/local/lib/python3.10 && \
-    chmod -R go=u /build
+# uncomment to install dn-splatter
+# NOTE: will override our nerfstudio installation to a fixed 1.1.3 version!
+#RUN pip install setuptools==69.5.1 Cython && \
+#    pip install --no-build-isolation --no-cache-dir \
+#        "dn-splatter @ git+https://github.com/maturk/dn-splatter.git"
 
 #
 # Docker runtime stage.
@@ -114,7 +120,7 @@ ARG CUDA_ARCHITECTURES
 ARG NVIDIA_CUDA_VERSION
 ARG UBUNTU_VERSION
 
-LABEL org.opencontainers.image.source = "https://github.com/nerfstudio-project/nerfstudio"
+LABEL org.opencontainers.image.source = "https://github.com/Skelp/nerfstudio-experimental"
 LABEL org.opencontainers.image.licenses = "Apache License 2.0"
 LABEL org.opencontainers.image.base.name="docker.io/library/nvidia/cuda:${NVIDIA_CUDA_VERSION}-devel-ubuntu${UBUNTU_VERSION}"
 LABEL org.opencontainers.image.documentation = "https://docs.nerf.studio/"
@@ -140,7 +146,8 @@ RUN apt-get update && \
         python3.10-dev \
         build-essential \
         python-is-python3 \
-        ffmpeg
+        ffmpeg \
+        curl
 
 # Copy packages from builder stage.
 COPY --from=builder /build/colmap/ /usr/local/

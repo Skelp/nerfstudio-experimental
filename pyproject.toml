@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nerfstudio"
-version = "1.1.5"
+version = "1.1.5exp"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
@@ -31,9 +31,9 @@ dependencies = [
     "mediapy>=1.1.0",
     "msgpack>=1.0.4",
     "msgpack_numpy>=0.4.8",
-    "nerfacc==0.5.2",
+    "nerfacc==0.5.3",
     "open3d>=0.16.0",
-    "opencv-python-headless==4.10.0.84",
+    "opencv-python-headless==4.12.0.88",
     "Pillow>=10.3.0",
     "plotly>=5.7.0",
     "protobuf<=5,!=3.20.0",
@@ -52,19 +52,18 @@ dependencies = [
     "requests",
     "rich>=12.5.1",
     "scikit-image>=0.19.3",
-    "splines==0.3.0",
+    "splines==0.3.3",
     "tensorboard>=2.13.0",
-    "torch>=1.13.1",
+    "torch>=2.0",
     "torchvision>=0.14.1",
     "torchmetrics[image]>=1.0.1",
     "typing_extensions>=4.4.0",
-    "viser==1.0.0",
+    "viser==1.0.16",
     "nuscenes-devkit>=1.1.1",
     "wandb>=0.13.3",
     "xatlas",
     "trimesh>=3.20.2",
-    "timm==0.6.7",
-    "gsplat==1.4.0",
+    "gsplat==1.5.3",
     "pytorch-msssim",
     "pathos",
     "packaging",
